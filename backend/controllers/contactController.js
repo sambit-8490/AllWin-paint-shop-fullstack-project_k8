@@ -1,24 +1,7 @@
-const nodemailer = require('nodemailer');
 const Complaint = require('../models/Complaint');
 
-const buildTransporter = () => {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) {
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass }
-  });
-};
-
+// TESTING MODE: SMTP/nodemailer removed.
+// Instead of emailing, we just log the submission and (for complaints) save it to the DB.
 exports.submitContact = async (req, res) => {
   try {
     const { name, email, phone, subject, message, type } = req.body;
@@ -31,34 +14,16 @@ exports.submitContact = async (req, res) => {
     }
 
     const normalizedType = type === 'complaint' ? 'complaint' : 'general';
-    const transporter = buildTransporter();
 
-    if (!transporter) {
-      return res.status(500).json({
-        success: false,
-        message: 'Email service is not configured'
-      });
-    }
-
-    const toEmail = process.env.CONTACT_TO_EMAIL || process.env.SMTP_USER;
-    const fromEmail = process.env.CONTACT_FROM_EMAIL || process.env.SMTP_USER;
-
-    await transporter.sendMail({
-      from: `"All Win Paint Shop" <${fromEmail}>`,
-      to: toEmail,
-      replyTo: email,
-      subject: subject || (normalizedType === 'complaint' ? 'New Complaint' : 'New Contact Request'),
-      text: `Name: ${name}\nEmail: ${email}\nPhone: ${phone || '-'}\nType: ${normalizedType}\n\n${message}`,
-      html: `
-        <h2>${normalizedType === 'complaint' ? 'New Complaint' : 'New Contact Request'}</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Phone:</strong> ${phone || '-'}</p>
-        <p><strong>Type:</strong> ${normalizedType}</p>
-        <p><strong>Subject:</strong> ${subject || '-'}</p>
-        <p><strong>Message:</strong><br/>${message.replace(/\n/g, '<br/>')}</p>
-      `
-    });
+    // TEST MODE: log instead of sending an email
+    console.log('--- New contact submission (test mode, no email sent) ---');
+    console.log(`Type: ${normalizedType}`);
+    console.log(`Name: ${name}`);
+    console.log(`Email: ${email}`);
+    console.log(`Phone: ${phone || '-'}`);
+    console.log(`Subject: ${subject || '-'}`);
+    console.log(`Message: ${message}`);
+    console.log('-----------------------------------------------------------');
 
     let complaintRecord;
     if (normalizedType === 'complaint') {

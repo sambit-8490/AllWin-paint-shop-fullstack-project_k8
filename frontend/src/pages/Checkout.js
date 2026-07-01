@@ -91,16 +91,6 @@ const Checkout = () => {
     }
   };
 
-  const loadRazorpay = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
   const handlePlaceOrder = async () => {
     setLoading(true);
 
@@ -121,56 +111,15 @@ const Checkout = () => {
       const response = await api.post('/orders', orderData);
       const order = response.data.data;
 
-      if (paymentMethod === 'online') {
-        const loaded = await loadRazorpay();
-        
-        if (!loaded) {
-          toast.error('Failed to load payment gateway');
-          setLoading(false);
-          return;
-        }
-
-        const options = {
-          key: response.data.key,
-          amount: response.data.razorpayOrder.amount,
-          currency: 'INR',
-          name: 'All Win Paint Shop',
-          description: `Order ${order.orderNumber}`,
-          order_id: response.data.razorpayOrder.id,
-          handler: async function (response) {
-            try {
-              await api.post('/orders/verify-payment', {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderId: order._id
-              });
-
-              clearCart();
-              toast.success('Payment successful! Order placed.');
-              navigate('/orders/' + order._id);
-            } catch (error) {
-              toast.error('Payment verification failed');
-            }
-          },
-          prefill: {
-            name: shippingAddress.name,
-            contact: shippingAddress.phone,
-            email: user.email
-          },
-          theme: {
-            color: '#ff7a18'
-          }
-        };
-
-        const razorpay = new window.Razorpay(options);
-        razorpay.open();
-      } else {
-        // COD order
-        clearCart();
-        toast.success('Order placed successfully!');
-        navigate('/orders/' + order._id);
-      }
+      // TESTING MODE: backend auto-confirms "online" orders without a real
+      // payment gateway, so both payment methods finish the same way here.
+      clearCart();
+      toast.success(
+        paymentMethod === 'online'
+          ? 'Payment auto-confirmed (test mode). Order placed!'
+          : 'Order placed successfully!'
+      );
+      navigate('/orders/' + order._id);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to place order');
     } finally {
@@ -311,7 +260,7 @@ const Checkout = () => {
                     <div className="payment-content">
                       <span className="payment-title">Pay Online</span>
                       <span className="payment-desc">
-                        Credit/Debit Card, UPI, Net Banking via Razorpay
+                        Test mode — payment will be auto-confirmed, no real gateway
                       </span>
                     </div>
                   </label>

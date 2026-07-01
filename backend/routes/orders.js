@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const {
   createOrder,
-  verifyPayment,
   getMyOrders,
   getOrders,
   getOrder,
@@ -13,7 +12,6 @@ const { protect, isManagerOrOwner } = require('../middleware/auth');
 
 // Buyer routes
 router.post('/', protect, createOrder);
-router.post('/verify-payment', protect, verifyPayment);
 router.get('/myorders', protect, getMyOrders);
 router.get('/:id', protect, getOrder);
 router.put('/:id/cancel', protect, cancelOrder);

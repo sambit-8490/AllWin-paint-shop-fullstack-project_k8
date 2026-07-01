@@ -126,7 +126,7 @@ const Contact = () => {
                 {submitting ? 'Sending...' : 'Send Message'}
               </button>
               <p className="contact-note">
-                Messages are sent to <strong>allwinpaintshop@gmail.com</strong>. We reply within 1 business day.
+                We reply within 1 business day.
               </p>
             </form>
           </div>

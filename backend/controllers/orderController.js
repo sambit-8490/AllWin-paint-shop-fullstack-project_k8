@@ -1,13 +1,5 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
-const Razorpay = require('razorpay');
-const crypto = require('crypto');
-
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -77,98 +69,28 @@ exports.createOrder = async (req, res) => {
       }]
     });
 
-    // Create Razorpay order if online payment
+    // TESTING MODE: no real payment gateway.
+    // "online" orders are auto-marked as paid/confirmed instead of calling Razorpay.
     if (paymentMethod === 'online') {
-      const razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(totalAmount * 100), // Amount in paise
-        currency: 'INR',
-        receipt: order.orderNumber,
-        notes: {
-          orderId: order._id.toString()
-        }
+      order.paymentStatus = 'paid';
+      order.orderStatus = 'confirmed';
+      order.statusHistory.push({
+        status: 'confirmed',
+        updatedBy: req.user.id,
+        note: 'Payment auto-confirmed (test mode, no payment gateway)'
       });
 
-      order.razorpayOrderId = razorpayOrder.id;
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(item.product, {
+          $inc: { stock: -item.quantity }
+        });
+      }
+
       await order.save();
-
-      return res.status(201).json({
-        success: true,
-        data: order,
-        razorpayOrder: {
-          id: razorpayOrder.id,
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency
-        },
-        key: process.env.RAZORPAY_KEY_ID
-      });
     }
 
     res.status(201).json({
       success: true,
-      data: order
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Verify Razorpay payment
-// @route   POST /api/orders/verify-payment
-// @access  Private
-exports.verifyPayment = async (req, res) => {
-  try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
-
-    // Verify signature
-    const sign = razorpay_order_id + '|' + razorpay_payment_id;
-    const expectedSign = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(sign.toString())
-      .digest('hex');
-
-    if (razorpay_signature !== expectedSign) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment signature'
-      });
-    }
-
-    // Update order
-    const order = await Order.findById(orderId);
-    
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    order.razorpayPaymentId = razorpay_payment_id;
-    order.razorpaySignature = razorpay_signature;
-    order.paymentStatus = 'paid';
-    order.orderStatus = 'confirmed';
-    order.statusHistory.push({
-      status: 'confirmed',
-      updatedBy: req.user.id,
-      note: 'Payment received'
-    });
-
-    // Reduce stock
-    for (const item of order.items) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: -item.quantity }
-      });
-    }
-
-    await order.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Payment verified successfully',
       data: order
     });
   } catch (error) {
