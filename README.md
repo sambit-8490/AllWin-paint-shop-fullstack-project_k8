@@ -100,6 +100,10 @@ From the `backend` folder (or inside the backend container):
 
 ```bash
 docker exec -it backend node seed.js
+
+"And for kubernetes"
+
+kubectl exec -it pod/backend-596ffc5c8-gcsqr -- node seed.js
 ```
 
 This creates demo accounts and a sample product catalog.
